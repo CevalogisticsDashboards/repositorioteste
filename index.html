@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Minhas Tarefas — Dark</title>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root{
+            --bg-main: #0f1724;
+            --card-bg: rgba(255,255,255,0.03);
+            --text: #e6eef8;
+            --muted: #9aa8bd;
+            --accent: #7c5cff;
+            --success: #28c76f;
+        }
+
+        body{
+            font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+            background:
+                radial-gradient(1000px 500px at 10% 10%, rgba(124,92,255,0.15), transparent),
+                radial-gradient(800px 400px at 90% 90%, rgba(40,199,111,0.1), transparent),
+                var(--bg-main);
+            color: var(--text);
+            min-height: 100vh;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:24px;
+        }
+
+        .container{
+            width:100%;
+            max-width:720px;
+            background: var(--card-bg);
+            border-radius:18px;
+            padding:26px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.7);
+            border: 1px solid rgba(255,255,255,0.05);
+            backdrop-filter: blur(6px);
+        }
+
+        /* ===== TOPO COM LOGO ===== */
+        .top{
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            gap:14px;
+            margin-bottom:22px;
+        }
+
+        .logo{
+            max-width:180px;
+            width:100%;
+            height:auto;
+            object-fit:contain;
+            filter: drop-shadow(0 6px 18px rgba(0,0,0,0.6));
+        }
+
+        h1{
+            font-size:22px;
+            font-weight:600;
+        }
+
+        .subtitle{
+            font-size:13px;
+            color:var(--muted);
+            text-align:center;
+        }
+
+        /* ===== INPUT ===== */ 
+        .input-row{
+            display:flex;
+            gap:12px;
+            margin-bottom:20px;
+        }
+
+        #taskInput{
+            flex:1;
+            padding:14px 16px;
+            border-radius:12px;
+            border:1px solid rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.02);
+            color:var(--text);
+            font-size:15px;
+            outline:none;
+        }
+
+        #taskInput:focus{
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(124,92,255,0.25);
+        }
+
+        #addBtn{
+            padding:14px 18px;
+            border-radius:12px;
+            border:none;
+            background: linear-gradient(90deg, #7c5cff, #4ad6b4);
+            color:#fff;
+            font-weight:600;
+            cursor:pointer;
+            transition: transform .12s;
+        }
+
+        #addBtn:active{
+            transform: scale(0.97);
+        }
+
+        /* ===== LISTA ===== */
+        #taskList{
+            list-style:none;
+            display:flex;
+            flex-direction:column;
+            gap:12px;
+        }
+
+        .task-item{
+            display:flex;
+            align-items:center;
+            gap:12px;
+            padding:14px;
+            border-radius:12px;
+            background: rgba(255,255,255,0.02);
+            border:1px solid rgba(255,255,255,0.04);
+            transition: transform .15s, box-shadow .15s;
+        }
+
+        .task-item:hover{
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        }
+
+        .checkbox{
+            width:22px;
+            height:22px;
+            accent-color: var(--accent);
+            cursor:pointer;
+        }
+
+        .task-text{
+            flex:1;
+            font-size:15px;
+        }
+
+        .delete-btn{
+            background: transparent;
+            color:var(--text);
+            border:1px solid rgba(255,255,255,0.08);
+            padding:8px 14px;
+            border-radius:10px;
+            cursor:pointer;
+        }
+
+        .task-item.completed{
+            border-left:4px solid var(--success);
+            background: linear-gradient(90deg, rgba(40,199,111,0.08), rgba(255,255,255,0.01));
+        }
+
+        .task-item.completed .task-text{
+            text-decoration: line-through;
+            color:#9bb7a8;
+        }
+
+        .check-emoji{
+            font-size:22px;
+            padding:6px 10px;
+            border-radius:10px;
+            background: rgba(40,199,111,0.12);
+            color:var(--success);
+        }
+
+        .empty-state{
+            text-align:center;
+            color:var(--muted);
+            padding:36px 10px;
+            border:1px dashed rgba(255,255,255,0.06);
+            border-radius:12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <!-- TOPO COM LOGO -->
+        <div class="top">
+            <img src="LogoCEVA.jpg" alt="Logo CEVA" class="logo">
+            <h1>📝 Minhas Tarefas</h1>
+            <div class="subtitle">
+                Marque como concluída para substituir o botão por um ✔️
+            </div>
+        </div>
+
+        <!-- INPUT -->
+        <div class="input-row">
+            <input id="taskInput" type="text" placeholder="Adicionar nova tarefa..." autocomplete="off">
+            <button id="addBtn">Adicionar</button>
+        </div>
+
+        <!-- LISTA -->
+        <ul id="taskList"></ul>
+    </div>
+
+    <script>
+        const taskInput = document.getElementById('taskInput');
+        const addBtn = document.getElementById('addBtn');
+        const taskList = document.getElementById('taskList');
+
+        let tasks = [
+            { id: 1, text: 'Reunião das 15:30', completed: false },
+            { id: 2, text: 'desenvolvimento app FAREVA', completed: false }
+        ];
+
+        function renderTasks(){
+            taskList.innerHTML = '';
+
+            if(tasks.length === 0){
+                taskList.innerHTML = '<div class="empty-state">Nenhuma tarefa adicionada ainda</div>';
+                return;
+            }
+
+            tasks.forEach(task => {
+                const li = document.createElement('li');
+                li.className = `task-item ${task.completed ? 'completed' : ''}`;
+
+                li.innerHTML = `
+                    <input type="checkbox" class="checkbox" 
+                        ${task.completed ? 'checked' : ''} 
+                        onchange="toggleTask(${task.id})">
+
+                    <span class="task-text">${task.text}</span>
+
+                    ${
+                        task.completed
+                        ? `<span class="check-emoji">✅</span>`
+                        : `<button class="delete-btn" onclick="deleteTask(${task.id})">Excluir</button>`
+                    }
+                `;
+
+                taskList.appendChild(li);
+            });
+        }
+
+        function addTask(){
+            const text = taskInput.value.trim();
+            if(!text) return;
+
+            tasks.push({
+                id: Date.now(),
+                text,
+                completed:false
+            });
+
+            taskInput.value = '';
+            renderTasks();
+        }
+
+        function toggleTask(id){
+            tasks = tasks.map(t =>
+                t.id === id ? {...t, completed: !t.completed} : t
+            );
+            renderTasks();
+        }
+
+        function deleteTask(id){
+            tasks = tasks.filter(t => t.id !== id);
+            renderTasks();
+        }
+
+        addBtn.addEventListener('click', addTask);
+        taskInput.addEventListener('keydown', e => {
+            if(e.key === 'Enter') addTask();
+        });
+
+        renderTasks();
+    </script>
+</body>
+</html>
