@@ -1,280 +1,526 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Minhas Tarefas — Dark</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestão de Devoluções</title>
 
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+  <script src="https://cdn.tailwindcss.com"></script>
 
-        :root{
-            --bg-main: #0f1724;
-            --card-bg: rgba(255,255,255,0.03);
-            --text: #e6eef8;
-            --muted: #9aa8bd;
-            --accent: #7c5cff;
-            --success: #28c76f;
+  <style>
+    html { height: 100%; scroll-behavior: smooth; }
+    body { display: flex; flex-direction: column; min-height: 100%; }
+    main { flex-grow: 1; }
+    body.modal-open { overflow: hidden; }
+    
+    .line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
+    #back-to-top-btn { opacity: 0; visibility: hidden; transform: translateY(1rem); transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out, transform 0.3s ease-in-out; }
+    #back-to-top-btn.show { opacity: 1; visibility: visible; transform: translateY(0); }
+    #app-container.blur-background { filter: blur(4px); pointer-events: none; }
+    .combobox-options { max-height: 200px; overflow-y: auto; z-index: 60; }
+    .combobox-option:hover { background-color: #eff6ff; }
+    
+    .kanban-column-wrapper { border-radius: 0.5rem; display: flex; flex-direction: column; }
+    .kanban-column-header { cursor: pointer; }
+    .kanban-column-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease, padding 0.5s ease; padding: 0 1rem; }
+    .kanban-column-wrapper.is-open .kanban-column-content { max-height: 2000px; padding: 1rem; }
+    .chevron-icon { transition: transform 0.3s ease; }
+    .kanban-column-wrapper.is-open .chevron-icon { transform: rotate(180deg); }
+    
+    .option-btn-group .option-btn { cursor: pointer; padding: 0.3rem 0.65rem; border: 1px solid #d1d5db; border-radius: 0.375rem; background-color: #ffffff; transition: all 0.2s; color: #374151; font-size: 0.75rem; white-space: nowrap; }
+    .option-btn-group .option-btn:hover { background-color: #f3f4f6; }
+    .option-btn-group .option-btn.active { background-color: #eff6ff; border-color: #2563eb; color: #1d4ed8; font-weight: 600; }
+
+    /* --- INÍCIO: Estilos CORRIGIDOS para o layout Kanban --- */
+    #kanban-container {
+      scrollbar-width: none; /* Firefox */
+    }
+    #kanban-container::-webkit-scrollbar { 
+      display: none; /* Safari and Chrome */
+    }
+    
+    @media (min-width: 768px) {
+      #kanban-container { scroll-snap-type: x mandatory; }
+      #kanban-container .kanban-column-wrapper { scroll-snap-align: start; }
+
+      #kanban-container .kanban-column-header, .chevron-icon { display: none; }
+      .kanban-column-content { max-height: none; overflow: visible; padding: 0.375rem; flex-grow: 1; min-height: 24rem; }
+      .kanban-column-wrapper { border-radius: 0 0 0.5rem 0.5rem; }
+    }
+    
+    .scroll-arrow {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: #ffffff;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s, visibility 0.3s, background-color 0.2s;
+    }
+      .scroll-arrow:hover { background-color: #f3f4f6; }
+      .scroll-arrow.visible { opacity: 1; visibility: visible; }
+      /* --- FIM: Estilos para o layout Kanban --- */
+
+      @keyframes modalBackdropIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes modalBackdropOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
+      @keyframes modalPanelIn {
+        from { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.96); }
+        to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+      }
+      @keyframes modalPanelOut {
+        from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+        to { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.97); }
+      }
+      .modal-backdrop {
+        will-change: opacity;
+        animation: modalBackdropIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      .modal-panel {
+        will-change: transform, opacity;
+        animation: modalPanelIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      .modal-backdrop.is-closing {
+        pointer-events: none;
+        animation: modalBackdropOut 0.18s cubic-bezier(0.4, 0, 1, 1) forwards;
+      }
+      .modal-backdrop.is-closing .modal-panel {
+        animation: modalPanelOut 0.18s cubic-bezier(0.4, 0, 1, 1) forwards;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .modal-backdrop, .modal-panel,
+        .modal-backdrop.is-closing, .modal-backdrop.is-closing .modal-panel {
+          animation: none !important;
         }
-
-        body{
-            font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
-            background:
-                radial-gradient(1000px 500px at 10% 10%, rgba(124,92,255,0.15), transparent),
-                radial-gradient(800px 400px at 90% 90%, rgba(40,199,111,0.1), transparent),
-                var(--bg-main);
-            color: var(--text);
-            min-height: 100vh;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            padding:24px;
-        }
-
-        .container{
-            width:100%;
-            max-width:720px;
-            background: var(--card-bg);
-            border-radius:18px;
-            padding:26px;
-            box-shadow: 0 15px 50px rgba(0,0,0,0.7);
-            border: 1px solid rgba(255,255,255,0.05);
-            backdrop-filter: blur(6px);
-        }
-
-        /* ===== TOPO COM LOGO ===== */
-        .top{
-            display:flex;
-            flex-direction:column;
-            align-items:center;
-            gap:14px;
-            margin-bottom:22px;
-        }
-
-        .logo{
-            max-width:180px;
-            width:100%;
-            height:auto;
-            object-fit:contain;
-            filter: drop-shadow(0 6px 18px rgba(0,0,0,0.6));
-        }
-
-        h1{
-            font-size:22px;
-            font-weight:600;
-        }
-
-        .subtitle{
-            font-size:13px;
-            color:var(--muted);
-            text-align:center;
-        }
-
-        /* ===== INPUT ===== */ 
-        .input-row{
-            display:flex;
-            gap:12px;
-            margin-bottom:20px;
-        }
-
-        #taskInput{
-            flex:1;
-            padding:14px 16px;
-            border-radius:12px;
-            border:1px solid rgba(255,255,255,0.05);
-            background: rgba(255,255,255,0.02);
-            color:var(--text);
-            font-size:15px;
-            outline:none;
-        }
-
-        #taskInput:focus{
-            border-color: var(--accent);
-            box-shadow: 0 0 0 2px rgba(124,92,255,0.25);
-        }
-
-        #addBtn{
-            padding:14px 18px;
-            border-radius:12px;
-            border:none;
-            background: linear-gradient(90deg, #7c5cff, #4ad6b4);
-            color:#fff;
-            font-weight:600;
-            cursor:pointer;
-            transition: transform .12s;
-        }
-
-        #addBtn:active{
-            transform: scale(0.97);
-        }
-
-        /* ===== LISTA ===== */
-        #taskList{
-            list-style:none;
-            display:flex;
-            flex-direction:column;
-            gap:12px;
-        }
-
-        .task-item{
-            display:flex;
-            align-items:center;
-            gap:12px;
-            padding:14px;
-            border-radius:12px;
-            background: rgba(255,255,255,0.02);
-            border:1px solid rgba(255,255,255,0.04);
-            transition: transform .15s, box-shadow .15s;
-        }
-
-        .task-item:hover{
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-        }
-
-        .checkbox{
-            width:22px;
-            height:22px;
-            accent-color: var(--accent);
-            cursor:pointer;
-        }
-
-        .task-text{
-            flex:1;
-            font-size:15px;
-        }
-
-        .delete-btn{
-            background: transparent;
-            color:var(--text);
-            border:1px solid rgba(255,255,255,0.08);
-            padding:8px 14px;
-            border-radius:10px;
-            cursor:pointer;
-        }
-
-        .task-item.completed{
-            border-left:4px solid var(--success);
-            background: linear-gradient(90deg, rgba(40,199,111,0.08), rgba(255,255,255,0.01));
-        }
-
-        .task-item.completed .task-text{
-            text-decoration: line-through;
-            color:#9bb7a8;
-        }
-
-        .check-emoji{
-            font-size:22px;
-            padding:6px 10px;
-            border-radius:10px;
-            background: rgba(40,199,111,0.12);
-            color:var(--success);
-        }
-
-        .empty-state{
-            text-align:center;
-            color:var(--muted);
-            padding:36px 10px;
-            border:1px dashed rgba(255,255,255,0.06);
-            border-radius:12px;
-        }
+      }
     </style>
+
 </head>
-
-<body>
-    <div class="container">
-
-        <!-- TOPO COM LOGO -->
-        <div class="top">
-            <img src="LogoCEVA.jpg" alt="Logo CEVA" class="logo">
-            <h1>📝 Minhas Tarefas</h1>
-            <div class="subtitle">
-                Marque como concluída para substituir o botão por um ✔️
+<body class="bg-gray-100">
+  <div id="app-container" class="bg-gray-50 flex flex-col flex-grow">
+    <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+      <div class="w-full mx-auto px-3 sm:px-4 lg:px-6">
+        <div class="flex items-center justify-between h-16"><div class="flex items-center gap-3"><i data-lucide="package-open" class="w-6 h-6 text-blue-600"></i><h1 class="text-xl md:text-2xl font-bold text-gray-900">Gestão de Devoluções</h1></div></div>
+      </div>
+    </header>
+    <main class="w-full mx-auto px-3 sm:px-4 lg:px-6 flex-grow flex flex-col">
+      <div class="sticky top-16 bg-gray-50 z-30 pt-2">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <div class="flex items-center gap-2 min-w-0">
+                <div class="relative">
+                    <i data-lucide="search" class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input id="search-input" type="text" placeholder="Buscar NF, transportadora, DEV..." class="pl-7 pr-2.5 py-1 text-xs border rounded-md w-44 sm:w-56 bg-white focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            <!-- *** ESTRUTURA REFEITA: Setas ao lado do filtro *** -->
+            <div class="flex items-center gap-2">
+                <div id="kanban-nav-arrows" class="hidden md:flex items-center gap-2">
+                    <button id="scroll-left-btn" class="scroll-arrow"><i data-lucide="chevron-left" class="w-5 h-5 text-gray-600"></i></button>
+                    <button id="scroll-right-btn" class="scroll-arrow"><i data-lucide="chevron-right" class="w-5 h-5 text-gray-600"></i></button>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <i data-lucide="filter" class="w-3.5 h-3.5 text-gray-400"></i>
+                    <select id="filter-status-select" class="border rounded-md px-2 py-1 text-xs bg-white"><option value="todos">Todos os status</option><option value="coleta-solicitada">COLETA SOLICITADA - CVT</option><option value="chegada-ceva">CHEGADA EM DOCA - CEVA</option><option value="grau-motivo">GRAU / MOTIVO - CVT</option><option value="recebimento-wms">RECEBIMENTO WMS - CEVA</option><option value="checklist-qa">CHECK LIST - QA - CEVA</option><option value="recebimento-sap">RECEBIMENTO SAP - CVT</option><option value="CANCELADOS">CANCELADOS</option></select>
+                </div>
             </div>
         </div>
-
-        <!-- INPUT -->
-        <div class="input-row">
-            <input id="taskInput" type="text" placeholder="Adicionar nova tarefa..." autocomplete="off">
-            <button id="addBtn">Adicionar</button>
+        <div id="sticky-header-clone-container" class="overflow-x-hidden hidden md:block"></div>
+      </div>
+      
+      <div id="kanban-wrapper" class="relative flex-grow">
+        <div id="kanban-container" class="md:overflow-x-auto h-full">
+          <div id="initial-loader" class="w-full flex flex-col items-center justify-center text-center py-20 text-gray-500"><div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mb-4"></div><p class="text-lg font-medium">Carregando devoluções...</p></div>
         </div>
+      </div>
+              </main>
+              <button class="new-ticket-btn-trigger fixed bottom-6 right-6 bg-blue-600 text-white w-11 h-11 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 z-40" title="Nova Devolução" aria-label="Nova Devolução"><i data-lucide="plus" class="w-5 h-5"></i></button>
+            </div>
 
-        <!-- LISTA -->
-        <ul id="taskList"></ul>
-    </div>
+          <div id="modal-container"></div>
+          <button id="back-to-top-btn" class="fixed bottom-20 right-6 bg-blue-600 text-white w-11 h-11 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 z-50"><i data-lucide="arrow-up" class="w-5 h-5"></i></button>
 
-    <script>
-        const taskInput = document.getElementById('taskInput');
-        const addBtn = document.getElementById('addBtn');
-        const taskList = document.getElementById('taskList');
+  <script src="https://unpkg.com/lucide@latest"></script>
 
-        let tasks = [
-            { id: 1, text: 'Reunião das 15:30', completed: false },
-            { id: 2, text: 'desenvolvimento app FAREVA', completed: false }
-        ];
+  <script type="module">
+    const STORAGE_KEY = 'devolucoes_cargas_tickets';
+    let tourTicketsOverride = null;
 
-        function renderTasks(){
-            taskList.innerHTML = '';
+    function loadTicketsFromStorage() {
+      if (tourTicketsOverride !== null) {
+        return tourTicketsOverride.slice();
+      }
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        console.error('Erro ao ler localStorage:', error);
+        return [];
+      }
+    }
 
-            if(tasks.length === 0){
-                taskList.innerHTML = '<div class="empty-state">Nenhuma tarefa adicionada ainda</div>';
-                return;
-            }
+    function saveTicketsToStorage(tickets) {
+      if (tourTicketsOverride !== null) {
+        tourTicketsOverride = Array.isArray(tickets) ? tickets : [];
+        return;
+      }
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets));
+      } catch (error) {
+        console.error('Erro ao salvar no localStorage:', error);
+      }
+    }
 
-            tasks.forEach(task => {
-                const li = document.createElement('li');
-                li.className = `task-item ${task.completed ? 'completed' : ''}`;
+    function saveTicketToStorage(updatedTicket) {
+      const allTickets = loadTicketsFromStorage();
+      const index = allTickets.findIndex(t => String(t.id) === String(updatedTicket.id));
+      if (index !== -1) {
+        allTickets[index] = updatedTicket;
+      } else {
+        allTickets.unshift(updatedTicket);
+      }
+      saveTicketsToStorage(allTickets);
+    }
 
-                li.innerHTML = `
-                    <input type="checkbox" class="checkbox" 
-                        ${task.completed ? 'checked' : ''} 
-                        onchange="toggleTask(${task.id})">
+    function getNextTicketSerial(tickets) {
+      const maxSerial = tickets.reduce((max, t) => {
+        const match = String(t.ticket_id_serial || '').match(/\d+/);
+        const num = match ? parseInt(match[0], 10) : 0;
+        return Math.max(max, num);
+      }, 0);
+      return `DEV-${String(maxSerial + 1).padStart(4, '0')}`;
+    }
+    const transportadoras = [ 'Braspress', 'Correios', 'DHL Supply Chain', 'FedEx / TNT', 'Frota Própria', 'Jadlog', 'Jamef', 'Patrus Transportes', 'Rodonaves', 'Total Express', 'Outra' ];
+    const clientesOrigem = [ 'Cliente 1', 'Cliente 2', 'Cliente 3', 'Cliente 4', 'Cliente 5', 'Cliente 6', 'Cliente 7', 'Cliente 8', 'Cliente 9', 'Cliente 10' ];
+    const priorityColors = { 'alta': 'text-red-600 bg-red-50 border-red-200', 'media': 'text-yellow-600 bg-yellow-50 border-yellow-200', 'baixa': 'text-green-600 bg-green-50 border-green-200' };
+    const statusConfig = {
+      'coleta-solicitada': { label: 'COLETA SOLICITADA - CVT', shortLabel: 'COLETA SOLICITADA - CVT', owner: 'CVT', logo: 'logo_convatec.png', color: 'bg-blue-500', icon: 'truck', bgColor: 'bg-blue-50', borderColor: 'border-blue-200', textColor: 'text-blue-600' },
+      'chegada-ceva': { label: 'CHEGADA EM DOCA - CEVA', shortLabel: 'CHEGADA EM DOCA - CEVA', owner: 'CEVA', logo: 'LogoCEVA.jpg', color: 'bg-cyan-500', icon: 'map-pin', bgColor: 'bg-cyan-50', borderColor: 'border-cyan-200', textColor: 'text-cyan-600' },
+      'grau-motivo': { label: 'GRAU / MOTIVO - CVT', shortLabel: 'GRAU / MOTIVO - CVT', owner: 'CVT', logo: 'logo_convatec.png', color: 'bg-indigo-500', icon: 'tag', bgColor: 'bg-indigo-50', borderColor: 'border-indigo-200', textColor: 'text-indigo-600' },
+      'recebimento-wms': { label: 'RECEBIMENTO WMS - CEVA', shortLabel: 'RECEBIMENTO WMS - CEVA', owner: 'CEVA', logo: 'LogoCEVA.jpg', color: 'bg-purple-500', icon: 'package-plus', bgColor: 'bg-purple-50', borderColor: 'border-purple-200', textColor: 'text-purple-600' },
+      'checklist-qa': { label: 'CHECK LIST - QA - CEVA', shortLabel: 'CHECK LIST - QA - CEVA', owner: 'CEVA', logo: 'LogoCEVA.jpg', color: 'bg-amber-500', icon: 'clipboard-check', bgColor: 'bg-amber-50', borderColor: 'border-amber-200', textColor: 'text-amber-600' },
+      'recebimento-sap': { label: 'RECEBIMENTO SAP - CVT', shortLabel: 'RECEBIMENTO SAP - CVT', owner: 'CVT', logo: 'logo_convatec.png', color: 'bg-green-500', icon: 'database', bgColor: 'bg-green-50', borderColor: 'border-green-200', textColor: 'text-green-600' },
+      'CANCELADOS': { label: 'CANCELADOS', shortLabel: 'CANCELADOS', color: 'bg-red-500', icon: 'x-circle', bgColor: 'bg-red-50', borderColor: 'border-red-200', textColor: 'text-red-600' }
+    };
+    function createOwnerLogoHTML(config, extraClasses = 'h-4 max-w-[72px]') {
+      if (!config?.logo) return '';
+      return `<img src="${config.logo}" alt="${config.owner || ''}" title="${config.owner || ''}" class="${extraClasses} w-auto object-contain rounded-md bg-white border border-gray-200/80 flex-shrink-0">`;
+    }
+    const state = { tickets: [], selectedTicketId: null, showNewTicketModal: false, pendingAction: null, newComment: '', filterStatus: 'todos', searchTerm: '', openAccordions: [], modalScrollPosition: 0 };
 
-                    <span class="task-text">${task.text}</span>
+    function fetchAllData() {
+      try {
+        const tickets = loadTicketsFromStorage().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        tickets.forEach(t => {
+          t.comments = Array.isArray(t.comments) ? t.comments : [];
+          t.comments_count = t.comments.length;
+        });
+        state.tickets = tickets;
+      } catch (error) {
+        console.error('Erro ao buscar dados:', error);
+        state.tickets = [];
+      } finally {
+        renderKanbanView();
+      }
+    }
 
-                    ${
-                        task.completed
-                        ? `<span class="check-emoji">✅</span>`
-                        : `<button class="delete-btn" onclick="deleteTask(${task.id})">Excluir</button>`
-                    }
-                `;
+    function addSystemComment(ticketId, content) {
+      const ticket = state.tickets.find(t => String(t.id) === String(ticketId));
+      if (!ticket) return;
+      const systemComment = {
+        id: `sys-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        created_at: new Date().toISOString(),
+        content,
+        is_system_generated: true,
+        user: { full_name: 'Sistema' }
+      };
+      ticket.comments = Array.isArray(ticket.comments) ? ticket.comments : [];
+        ticket.comments.unshift(systemComment);
+        ticket.comments_count = ticket.comments.length;
+        saveTicketToStorage(ticket);
+      }
 
-                taskList.appendChild(li);
+      function createTicketCardHTML(ticket) { const config = statusConfig[ticket.status]; const logoHTML = createOwnerLogoHTML(config, 'h-4 max-w-[56px]'); const isSingle = Number(ticket.qtd_volumes) === 1; const unitLabel = ticket.tipo_carga === 'Paletizada' ? (isSingle ? 'Pallet' : 'Pallets') : (isSingle ? 'Volume' : 'Volumes'); return `<div class="bg-white rounded-md border border-gray-200 p-1.5 shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-blue-300 ticket-card flex flex-col gap-1" data-ticket-id="${ticket.id}"><div class="flex items-start justify-between gap-1.5 min-w-0"><div class="min-w-0 flex-1"><span class="text-[9px] text-gray-400 font-medium block leading-none">Transportadora</span><h3 class="font-semibold text-gray-800 text-[11px] leading-tight truncate mt-0.5" title="${ticket.transportadora}">${ticket.transportadora}</h3></div>${logoHTML}</div>${ticket.cliente ? `<div class="text-[10px] leading-tight"><div class="flex items-start gap-1 text-gray-600"><i data-lucide="user" class="w-3 h-3 text-gray-400 flex-shrink-0 mt-0.5"></i><span class="break-words">${ticket.cliente}</span></div></div>` : ''}<div class="pt-1 border-t border-gray-100 space-y-1"><div class="text-[9px] leading-tight font-medium text-gray-600 bg-gray-100 px-1 py-0.5 rounded flex items-center gap-1"><i data-lucide="tag" class="w-2.5 h-2.5 flex-shrink-0"></i><span class="break-words">${ticket.motivo_devolucao}</span></div><div class="flex items-center justify-between gap-1 text-[10px] text-gray-600"><div class="flex items-center gap-0.5 font-semibold"><i data-lucide="package" class="w-3 h-3 text-blue-500 flex-shrink-0"></i><span>${ticket.qtd_volumes} ${unitLabel}</span></div><div class="flex items-center gap-1 text-gray-400 flex-shrink-0"><span class="font-mono text-[9px] text-gray-500">${ticket.ticket_id_serial}</span>${ticket.comments_count > 0 ? `<div class="flex items-center gap-0.5"><i data-lucide="message-square" class="w-2.5 h-2.5"></i><span>${ticket.comments_count}</span></div>` : ''}</div></div></div></div>`; }
+
+    function renderKanbanView() { const kanbanContainer = document.getElementById('kanban-container'); const stickyCloneContainer = document.getElementById('sticky-header-clone-container'); document.getElementById('initial-loader')?.remove(); let displayedTickets = state.searchTerm ? state.tickets.filter(t => Object.values(t).some(val => typeof val !== 'object' && String(val).toLowerCase().includes(state.searchTerm.toLowerCase()))) : state.tickets; const statusesToRender = Object.keys(statusConfig).filter(s => state.filterStatus === 'todos' || state.filterStatus === s); let kanbanHTML = ''; let headersCloneHTML = ''; if (state.searchTerm && displayedTickets.length === 0) { kanbanContainer.innerHTML = `<div class="w-full text-center py-12 text-gray-500"><i data-lucide="search-x" class="w-10 h-10 mx-auto mb-2"></i><p>Nenhuma devolução encontrada.</p></div>`; stickyCloneContainer.innerHTML = ''; lucide.createIcons(); updateScrollArrows(); return; } const colWidthClass = statusesToRender.length === 1 ? 'md:w-72 md:flex-shrink-0' : 'md:flex-1 md:min-w-0'; statusesToRender.forEach((status, idx) => { const config = statusConfig[status]; const ticketsForColumn = displayedTickets.filter(ticket => ticket.status === status); const nextStatus = statusesToRender[idx + 1]; const arrowHTML = (nextStatus && nextStatus !== 'CANCELADOS') ? '<span class="pointer-events-none hidden md:flex items-center justify-center absolute top-1/2 -translate-y-1/2 left-full w-2.5 lg:w-3 text-gray-400"><i data-lucide="chevron-right" class="w-3 h-3"></i></span>' : ''; headersCloneHTML += `<div class="${colWidthClass} relative"><div class="${config.bgColor} px-1.5 py-2 rounded-t-lg border-t-2 ${config.borderColor} h-full flex items-center"><div class="flex items-center gap-1 min-w-0 w-full"><i data-lucide="${config.icon}" class="w-3 h-3 ${config.textColor} flex-shrink-0"></i><h3 class="font-semibold text-gray-700 text-[8.5px] xl:text-[9px] 2xl:text-[10px] tracking-tighter leading-none whitespace-nowrap truncate min-w-0 flex-1 text-center" title="${config.label}">${config.shortLabel || config.label}</h3><span class="ml-auto flex-shrink-0 bg-white border ${config.borderColor} shadow-sm px-1.5 py-0.5 rounded-full text-[10px] font-bold ${config.textColor} leading-none min-w-[18px] text-center">${ticketsForColumn.length}</span></div></div>${arrowHTML}</div>`; kanbanHTML += `<div class="kanban-column-wrapper ${colWidthClass}" data-status="${status}"><div class="kanban-column-header px-3 py-2.5 flex items-center justify-between gap-2 ${config.bgColor} border-t-2 ${config.borderColor} rounded-t-lg"><div class="flex items-center gap-2 min-w-0 flex-1"><i data-lucide="${config.icon}" class="w-4 h-4 ${config.textColor} flex-shrink-0"></i><h3 class="font-semibold text-xs text-gray-700 tracking-tight whitespace-nowrap truncate flex-1 text-center">${config.shortLabel || config.label}</h3><span class="bg-white border ${config.borderColor} shadow-sm px-2 py-0.5 rounded-full text-xs font-bold ${config.textColor} leading-none min-w-[22px] text-center flex-shrink-0">${ticketsForColumn.length}</span></div><i data-lucide="chevron-down" class="w-4 h-4 text-gray-500 chevron-icon flex-shrink-0"></i></div><div class="kanban-column-content ${config.bgColor}"><div class="space-y-1.5">${ticketsForColumn.length > 0 ? ticketsForColumn.map(createTicketCardHTML).join('') : '<div class="text-center text-[11px] text-gray-500 py-8">Nenhuma devolução.</div>'}</div></div></div>`; }); kanbanContainer.innerHTML = `<div class="block space-y-4 md:flex md:space-y-0 md:gap-2.5 lg:gap-3 md:pb-4">${kanbanHTML}</div>`; stickyCloneContainer.innerHTML = `<div class="flex md:gap-2.5 lg:gap-3">${headersCloneHTML}</div>`; if (window.innerWidth < 768) { state.openAccordions.forEach(s => document.querySelector(`.kanban-column-wrapper[data-status="${s}"]`)?.classList.add('is-open')); } lucide.createIcons(); updateScrollArrows(); }
+    function renderHeaderAndToolbar() { lucide.createIcons(); }
+    function createCommentHTML(comment) { const timestamp = new Date(comment.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).replace(',', ''); let authorName, contentHTML = `<p class="text-xs text-gray-700 leading-snug">${comment.content}</p>`, bubbleClasses = ''; if (comment.is_system_generated) { authorName = 'Sistema'; bubbleClasses = 'bg-gray-50 border-l-4 border-gray-300'; if (comment.content.startsWith('Status alterado para:')) { const statusLabel = comment.content.split(':')[1].trim(); const statusKey = Object.keys(statusConfig).find(k => statusConfig[k].label === statusLabel); contentHTML = `<p class="text-xs text-gray-700 leading-snug">Status alterado para: <strong class="font-semibold ${statusConfig[statusKey]?.textColor || ''}">${statusLabel}</strong></p>`; } } else { authorName = comment.user?.full_name || 'Operador'; bubbleClasses = 'bg-blue-50 border-l-4 border-blue-300'; } return `<div id="${comment.id}" class="p-2.5 rounded-md ${bubbleClasses}"><div class="flex items-center justify-between mb-1"><span class="font-semibold text-xs">${authorName}</span><span class="text-[11px] text-gray-500">${timestamp}</span></div>${contentHTML}</div>`; }
+    function createComboboxHTML(id, label, placeholder, options) { return `<div id="${id}" class="relative"><label class="block text-xs font-medium mb-1 text-gray-700">${label}</label><div class="relative"><input type="text" placeholder="${placeholder}" class="w-full px-2.5 py-1.5 pr-8 text-xs border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-blue-500"><div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none"><i data-lucide="chevron-down" class="w-4 h-4 text-gray-400"></i></div></div><div class="combobox-options absolute left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg hidden"><ul class="py-1">${options.map(opt => `<li class="combobox-option px-2.5 py-1.5 cursor-pointer text-xs">${opt}</li>`).join('')}</ul></div></div>`; }
+    let modalCloseTimeout = null;
+    function renderModals() {
+      const modalContainer = document.getElementById('modal-container');
+      let modalHTML = '';
+      if (state.selectedTicketId) {
+        const ticket = state.tickets.find(t => t.id == state.selectedTicketId);
+        if (ticket) {
+          const flowSteps = ['coleta-solicitada', 'chegada-ceva', 'grau-motivo', 'recebimento-wms', 'checklist-qa', 'recebimento-sap'];
+          const currentStepIndex = flowSteps.indexOf(ticket.status);
+          const stepsHTML = `<div class="flex-shrink-0 px-4 py-1.5 bg-gray-50 border-b flex flex-wrap items-center gap-1.5 text-[11px]">${flowSteps.map((stepKey, idx) => { const stepCfg = statusConfig[stepKey]; const isCurrent = ticket.status === stepKey; const isDone = currentStepIndex !== -1 && idx < currentStepIndex; const pillClass = `${stepCfg.bgColor} ${stepCfg.borderColor} ${stepCfg.textColor} border ${isCurrent ? 'font-semibold ring-2 ring-current ring-offset-1 shadow-sm' : 'opacity-75'}`; const arrow = idx > 0 ? '<i data-lucide="chevron-right" class="w-3 h-3 text-gray-300 flex-shrink-0"></i>' : ''; const content = `<i data-lucide="${isDone ? 'check' : stepCfg.icon}" class="w-3 h-3 flex-shrink-0"></i><span>${stepCfg.shortLabel || stepCfg.label}</span>`; return `${arrow}<div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${pillClass}">${content}</div>`; }).join('')}${ticket.status === 'CANCELADOS' ? `<i data-lucide="chevron-right" class="w-3 h-3 text-gray-300 flex-shrink-0"></i><div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 font-semibold"><i data-lucide="x-circle" class="w-3 h-3 flex-shrink-0"></i><span>CANCELADOS</span></div>` : ''}</div>`;
+          const detailsHTML = `<div class="grid grid-cols-2 gap-x-2.5 gap-y-1.5 text-[11px] leading-tight"><div class="col-span-2"><span class="text-gray-500 text-[10px]">Notas Fiscais:</span><div class="font-medium text-gray-800 break-words">${ticket.notas_fiscais}</div></div><div><span class="text-gray-500 text-[10px]">Transportadora:</span><div class="font-medium text-gray-800 break-words">${ticket.transportadora}</div></div><div><span class="text-gray-500 text-[10px]">Qtd. Volumes / Pallets:</span><div class="font-medium text-gray-800">${ticket.qtd_volumes}</div></div><div><span class="text-gray-500 text-[10px]">Cliente / Origem:</span><div class="font-medium text-gray-800 break-words">${ticket.cliente || '-'}</div></div><div><span class="text-gray-500 text-[10px]">Motivo:</span><div class="font-medium text-gray-800 break-words">${ticket.motivo_devolucao || '-'}</div></div><div class="col-span-2"><span class="text-gray-500 text-[10px]">Tipo de Carga:</span><div class="font-medium text-gray-800 break-words">${ticket.tipo_carga || '-'}</div></div>${ticket.observacoes ? `<div class="col-span-2 p-2 rounded-md bg-blue-50 border border-blue-200 border-l-4 border-l-blue-500"><span class="text-blue-700 text-[10px] font-semibold uppercase tracking-wide block mb-0.5">Observações / Ocorrências (Opcional):</span><p class="font-semibold text-gray-900 whitespace-pre-wrap break-words">${ticket.observacoes}</p></div>` : ''}<div class="pt-1 border-t border-gray-200 ${ticket.status === 'recebimento-sap' && ticket.armazenado_em ? '' : 'col-span-2'}"><span class="text-gray-500 text-[10px]">Registrado em:</span><div class="font-medium text-gray-800">${new Date(ticket.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).replace(',', '')}</div></div>${ticket.status === 'recebimento-sap' && ticket.armazenado_em ? `<div class="pt-1 border-t border-gray-200"><span class="text-gray-500 text-[10px]">Concluído em:</span><div class="font-medium text-gray-800">${new Date(ticket.armazenado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).replace(',', '')}</div></div>` : ''}</div>`;
+          modalHTML = `<div class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3"><div class="modal-panel bg-white rounded-lg w-full max-w-6xl h-[94vh] lg:h-[90vh] flex flex-col overflow-hidden"><div class="flex-shrink-0 flex items-center justify-between px-4 py-2.5 border-b"><div><h2 class="text-base font-bold text-gray-900 leading-tight">Devolução: ${ticket.transportadora}</h2><div id="modal-header-details" class="flex flex-wrap items-center gap-2 mt-0.5"><span class="font-mono text-xs text-gray-500">${ticket.ticket_id_serial}</span></div></div><button class="p-1.5 hover:bg-gray-100 rounded-lg close-modal-btn"><i data-lucide="x" class="w-4 h-4"></i></button></div>${stepsHTML}<div class="flex-grow min-h-0 overflow-y-auto lg:overflow-hidden p-3"><div class="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:h-full min-h-0"><div class="lg:col-span-2 flex flex-col min-h-0 lg:h-full"><h3 class="font-semibold text-[11px] text-gray-900 uppercase tracking-wide mb-1.5 flex-shrink-0">Comentários</h3>${ticket.status !== 'CANCELADOS' ? `<div class="mb-2.5 p-2 bg-gray-50 rounded-lg flex-shrink-0"><textarea id="new-comment-textarea" rows="2" class="w-full p-2 text-xs border rounded-md focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Registre ocorrências de descarga, divergências de NF, parecer da qualidade...">${state.newComment}</textarea><div class="flex justify-end mt-1.5"><button id="add-comment-btn" ${!state.newComment.trim()?'disabled':''} class="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-blue-700 disabled:opacity-50"><i data-lucide="send" class="w-3.5 h-3.5"></i>Enviar</button></div></div>`:''}<div id="comments-list" class="space-y-1.5 lg:flex-grow lg:overflow-y-auto lg:pr-1 min-h-0">${ticket.comments.map(createCommentHTML).join('')}</div></div><div class="space-y-2.5"><div class="bg-gray-50 p-2.5 rounded-lg"><h3 class="font-semibold text-[11px] text-gray-900 uppercase tracking-wide mb-1.5">Detalhes da Carga</h3>${detailsHTML}</div><div id="actions-wrapper">${renderActionsHTML(ticket)}</div></div></div></div></div></div>`;
+        }
+      } else if (state.showNewTicketModal) {
+        modalHTML = `<div class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3"><div class="modal-panel bg-white rounded-lg w-full max-w-4xl max-h-[95vh] flex flex-col"><div class="flex-shrink-0 flex items-center justify-between px-4 py-2.5 border-b"><h2 class="text-base font-bold text-gray-800">Nova Devolução</h2><button class="p-1.5 hover:bg-gray-100 rounded-lg close-modal-btn"><i data-lucide="x" class="w-4 h-4"></i></button></div><form id="new-ticket-form" class="flex-grow flex flex-col overflow-hidden"><div class="flex-grow overflow-y-auto p-4 space-y-2.5"><div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label for="new-notas-fiscais" class="block text-xs font-medium mb-1 text-gray-700">Notas Fiscais *</label><input id="new-notas-fiscais" type="text" required placeholder="Ex: NF 45890, NF 45891" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"></div>${createComboboxHTML('combobox-transportadora', 'Transportadora *', 'Selecione ou digite...', transportadoras)}</div><div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label for="new-qtd-volumes" class="block text-xs font-medium mb-1 text-gray-700">Qtd. Volumes / Pallets *</label><input id="new-qtd-volumes" type="number" min="1" value="1" required class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"></div>${createComboboxHTML('combobox-cliente', 'Cliente / Origem', 'Opcional...', clientesOrigem)}</div><div class="border-t pt-2.5"><label class="block text-xs font-medium mb-1.5 text-gray-700">Motivo da Devolução *</label><div class="flex flex-wrap gap-1.5 option-btn-group" data-group="motivo_devolucao"><button type="button" class="option-btn" data-value="Avaria">Avaria</button><button type="button" class="option-btn" data-value="Recusa no Cliente">Recusa no Cliente</button><button type="button" class="option-btn" data-value="Divergência de Pedido">Divergência de Pedido</button><button type="button" class="option-btn" data-value="Produto Vencido">Produto Vencido</button><button type="button" class="option-btn" data-value="Desacordo Comercial">Desacordo Comercial</button></div><div id="motivo-conditional-hint" class="mt-1.5"></div></div><div><label class="block text-xs font-medium mb-1.5 text-gray-700">Tipo de Carga *</label><div class="flex flex-wrap gap-1.5 option-btn-group" data-group="tipo_carga"><button type="button" class="option-btn" data-value="Paletizada">Paletizada</button><button type="button" class="option-btn" data-value="Granel">Granel</button></div></div><div><label for="new-observacoes" class="block text-xs font-medium mb-1 text-gray-700">Observações / Ocorrências (Opcional)</label><textarea id="new-observacoes" rows="2" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-md resize-none focus:ring-2 focus:ring-blue-500" placeholder="Detalhes da carga, número do CTE, lacre, condições da embalagem..."></textarea></div></div><div class="flex-shrink-0 flex gap-3 px-4 py-2.5 border-t bg-gray-50"><button type="submit" class="flex-1 bg-blue-600 text-white py-2 px-3 rounded-md hover:bg-blue-700 text-xs font-semibold">Registrar Devolução</button><button type="button" class="flex-1 bg-gray-200 text-gray-700 py-2 px-3 rounded-md hover:bg-gray-300 text-xs font-semibold close-modal-btn">Cancelar</button></div></form></div></div>`;
+      }
+      if (modalHTML) {
+        if (modalCloseTimeout) {
+          clearTimeout(modalCloseTimeout);
+          modalCloseTimeout = null;
+        }
+        modalContainer.innerHTML = modalHTML;
+        if (state.showNewTicketModal) {
+          initializeCombobox('combobox-transportadora');
+          initializeCombobox('combobox-cliente');
+          initializeOptionButtons();
+        }
+        const msc = document.getElementById('comments-list') || document.getElementById('modal-scroll-content');
+        if (msc) {
+          msc.scrollTop = state.modalScrollPosition;
+          msc.addEventListener('scroll', () => { state.modalScrollPosition = msc.scrollTop; });
+        }
+        lucide.createIcons();
+      } else {
+        const currentBackdrop = modalContainer.querySelector('.modal-backdrop');
+        if (currentBackdrop) {
+          if (!currentBackdrop.classList.contains('is-closing')) {
+            currentBackdrop.classList.add('is-closing');
+            if (modalCloseTimeout) clearTimeout(modalCloseTimeout);
+            modalCloseTimeout = setTimeout(() => {
+              modalCloseTimeout = null;
+              if (!state.selectedTicketId && !state.showNewTicketModal) {
+                modalContainer.innerHTML = '';
+              }
+            }, 180);
+          }
+        } else {
+          modalContainer.innerHTML = '';
+        }
+      }
+      document.getElementById('app-container').classList.toggle('blur-background', !!modalHTML);
+      document.body.classList.toggle('modal-open', !!modalHTML);
+    }
+    function renderActionsHTML(ticket) { if (ticket.status === 'recebimento-sap' || ticket.status === 'CANCELADOS') return ''; let actionsHTML = ''; const { status: currentStatus, id: ticketId } = ticket; const createButton = (nextStatus, color, text) => `<button data-action="set-status" data-status="${nextStatus}" data-ticket-id="${ticketId}" class="w-full ${color} text-white py-1.5 px-2.5 rounded-md text-[11px] font-medium">${text || statusConfig[nextStatus].label}</button>`; switch (currentStatus) { case 'coleta-solicitada': actionsHTML += createButton('chegada-ceva', 'bg-cyan-600 hover:bg-cyan-700', 'Avançar: Chegada'); break; case 'chegada-ceva': actionsHTML += createButton('grau-motivo', 'bg-indigo-600 hover:bg-indigo-700', 'Avançar: Grau / Motivo'); break; case 'grau-motivo': actionsHTML += createButton('recebimento-wms', 'bg-purple-600 hover:bg-purple-700', 'Avançar: Recebimento WMS'); break; case 'recebimento-wms': actionsHTML += createButton('checklist-qa', 'bg-amber-600 hover:bg-amber-700', 'Avançar: Check List - QA'); break; case 'checklist-qa': actionsHTML += createButton('recebimento-sap', 'bg-green-600 hover:bg-green-700', 'Concluir: Recebimento SAP'); break; } actionsHTML += createButton('CANCELADOS', 'bg-red-600 hover:bg-red-700', 'Cancelar Devolução'); return `<div class="bg-gray-50 p-2.5 rounded-lg"><h3 class="font-semibold text-[11px] text-gray-900 uppercase tracking-wide mb-1.5">Ações</h3><div id="actions-container" class="grid grid-cols-2 gap-2">${actionsHTML}</div></div>`; }
+    function initializeCombobox(containerId) { const c = document.getElementById(containerId); if (!c) return; const i = c.querySelector('input'), p = c.querySelector('.combobox-options'), a = Array.from(c.querySelectorAll('.combobox-option')); i.addEventListener('focus', () => p.classList.remove('hidden')); i.addEventListener('input', () => { p.classList.remove('hidden'); a.forEach(o => o.classList.toggle('hidden', !o.textContent.toLowerCase().includes(i.value.toLowerCase()))); }); a.forEach(o => o.addEventListener('mousedown', (e) => { e.preventDefault(); i.value = o.textContent; p.classList.add('hidden'); })); document.addEventListener('click', (e) => { if (!c.contains(e.target)) p.classList.add('hidden'); }); }
+    function initializeOptionButtons() { const groups = document.querySelectorAll('.option-btn-group'); groups.forEach(group => { group.addEventListener('click', (e) => { const clickedButton = e.target.closest('.option-btn'); if (!clickedButton) return; group.querySelectorAll('.option-btn').forEach(btn => btn.classList.remove('active')); clickedButton.classList.add('active'); if (group.dataset.group === 'motivo_devolucao') { const hintContainer = document.getElementById('motivo-conditional-hint'); const value = clickedButton.dataset.value; if (value === 'Avaria') { hintContainer.innerHTML = `<div class="p-2 rounded-md bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-center gap-1.5"><i data-lucide="alert-triangle" class="w-3.5 h-3.5 flex-shrink-0"></i><span>Registre nos comentários as condições dos volumes avariados para inspeção da Qualidade.</span></div>`; lucide.createIcons(); } else { hintContainer.innerHTML = ''; } } }); }); }
+    let confirmCloseTimeout = null;
+    function renderConfirmationModal() {
+      const existingConfirm = document.getElementById('confirm-modal-overlay');
+      if (!state.pendingAction) {
+        if (existingConfirm && !existingConfirm.classList.contains('is-closing')) {
+          existingConfirm.classList.add('is-closing');
+          if (confirmCloseTimeout) clearTimeout(confirmCloseTimeout);
+          confirmCloseTimeout = setTimeout(() => {
+            confirmCloseTimeout = null;
+            existingConfirm.remove();
+          }, 180);
+        }
+        return;
+      }
+      if (confirmCloseTimeout) {
+        clearTimeout(confirmCloseTimeout);
+        confirmCloseTimeout = null;
+      }
+      existingConfirm?.remove();
+      const { newStatus, serial } = state.pendingAction;
+      const statusLabel = statusConfig[newStatus]?.label || newStatus;
+      const isCancel = newStatus === 'CANCELADOS';
+      const confirmText = isCancel
+        ? `Tem certeza que deseja cancelar a devolução <strong>${serial}</strong>?`
+        : `Deseja confirmar a movimentação da devolução <strong>${serial}</strong> para a etapa <strong>${statusLabel}</strong>?`;
+      const confirmBtnClass = isCancel ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700';
+      document.body.insertAdjacentHTML('beforeend', `<div id="confirm-modal-overlay" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4"><div class="modal-panel bg-white rounded-lg w-full max-w-md shadow-xl p-6 space-y-4"><div class="flex items-start gap-3"><div class="p-2 rounded-full ${isCancel ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}"><i data-lucide="${isCancel ? 'alert-octagon' : 'check-circle-2'}" class="w-6 h-6"></i></div><div><h3 class="text-lg font-bold text-gray-900">Confirmar alteração</h3><p class="text-sm text-gray-600 mt-1">${confirmText}</p></div></div><div class="flex justify-end gap-3 pt-2"><button type="button" id="cancel-action-btn" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm font-medium">Voltar</button><button type="button" id="confirm-action-btn" class="px-4 py-2 rounded-lg text-white text-sm font-medium ${confirmBtnClass}">Confirmar</button></div></div></div>`);
+      lucide.createIcons();
+    }
+    function handleCloseModals() { Object.assign(state, { selectedTicketId: null, showNewTicketModal: false, pendingAction: null, newComment: '', modalScrollPosition: 0 }); renderConfirmationModal(); renderModals(); }
+
+    function handleAddComment() {
+      const content = state.newComment.trim();
+      if (!state.selectedTicketId || !content) return;
+      state.newComment = '';
+      const newComment = {
+        id: `cmt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        created_at: new Date().toISOString(),
+        content,
+        is_system_generated: false,
+        user: { full_name: 'Operador' }
+      };
+      const ticket = state.tickets.find(t => String(t.id) === String(state.selectedTicketId));
+      if (!ticket) return;
+      ticket.comments = Array.isArray(ticket.comments) ? ticket.comments : [];
+      ticket.comments.unshift(newComment);
+      ticket.comments_count = ticket.comments.length;
+      saveTicketToStorage(ticket);
+      const list = document.getElementById('comments-list');
+      if (list) {
+        list.insertAdjacentHTML('afterbegin', createCommentHTML(newComment));
+        document.getElementById('new-comment-textarea').value = '';
+        document.getElementById('add-comment-btn').disabled = true;
+      }
+      renderKanbanView();
+    }
+
+    function handleCreateTicket(e) {
+      e.preventDefault();
+      const form = e.target;
+      const getActive = g => form.querySelector(`.option-btn-group[data-group="${g}"] .active`)?.dataset.value;
+      const allTickets = loadTicketsFromStorage();
+      const newTicket = {
+        id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `dev-${Date.now()}`,
+        ticket_id_serial: getNextTicketSerial(allTickets),
+        created_at: new Date().toISOString(),
+        notas_fiscais: form.querySelector('#new-notas-fiscais').value.trim(),
+        transportadora: form.querySelector('#combobox-transportadora input').value.trim(),
+        qtd_volumes: parseInt(form.querySelector('#new-qtd-volumes').value, 10),
+        cliente: form.querySelector('#combobox-cliente input').value.trim(),
+        motivo_devolucao: getActive('motivo_devolucao'),
+        tipo_carga: getActive('tipo_carga'),
+            observacoes: form.querySelector('#new-observacoes').value.trim(),
+            status: 'coleta-solicitada',
+            comments: [],
+            comments_count: 0
+          };
+          if (!newTicket.notas_fiscais || !newTicket.transportadora || !newTicket.qtd_volumes || newTicket.qtd_volumes < 1 || !newTicket.motivo_devolucao || !newTicket.tipo_carga) {
+            alert('Preencha os campos obrigatórios (*).');
+            return;
+          }
+          handleCloseModals();
+          state.tickets.unshift(newTicket);
+          saveTicketToStorage(newTicket);
+          addSystemComment(newTicket.id, `Devolução registrada na etapa ${statusConfig['coleta-solicitada'].label} (NFs: ${newTicket.notas_fiscais})`);
+          renderKanbanView();
+        }
+
+    function requestAction(newStatus, ticketId) {
+      if (!newStatus || !statusConfig[newStatus]) return;
+      const ticket = state.tickets.find(t => String(t.id) === String(ticketId));
+      if (!ticket) return;
+      state.pendingAction = { newStatus, ticketId, serial: ticket.ticket_id_serial };
+      renderConfirmationModal();
+    }
+
+    function confirmPendingAction() {
+      if (!state.pendingAction) return;
+      const { newStatus, ticketId } = state.pendingAction;
+      handleAction(newStatus, ticketId);
+    }
+
+    function handleAction(newStatus, ticketId) {
+      if (!newStatus || !statusConfig[newStatus]) return;
+      const ticketIndex = state.tickets.findIndex(t => String(t.id) === String(ticketId));
+      if (ticketIndex === -1) return;
+      const ticket = state.tickets[ticketIndex];
+      ticket.status = newStatus;
+      if (newStatus === 'recebimento-sap') {
+        ticket.armazenado_em = new Date().toISOString();
+      }
+      addSystemComment(ticket.id, `Status alterado para: ${statusConfig[newStatus].label}`);
+      renderKanbanView();
+      handleCloseModals();
+    }
+
+    window.__devTourBridge = {
+      reloadData: () => {
+        fetchAllData();
+      },
+      closeModals: () => {
+        handleCloseModals();
+      },
+      submitNewTicket: () => {
+        const form = document.getElementById('new-ticket-form');
+        if (!form) return false;
+        handleCreateTicket({ preventDefault() {}, target: form });
+        return !state.showNewTicketModal;
+      },
+      setTourTickets: (tickets) => {
+        tourTicketsOverride = Array.isArray(tickets) ? JSON.parse(JSON.stringify(tickets)) : [];
+        window.__devTourBridge.resetUI();
+      },
+      clearTourTickets: () => {
+        tourTicketsOverride = null;
+        window.__devTourBridge.resetUI();
+      },
+      resetUI: () => {
+        Object.assign(state, { searchTerm: '', filterStatus: 'todos', openAccordions: [] });
+        const si = document.getElementById('search-input');
+        if (si) si.value = '';
+        const fs = document.getElementById('filter-status-select');
+        if (fs) fs.value = 'todos';
+        if (modalCloseTimeout) { clearTimeout(modalCloseTimeout); modalCloseTimeout = null; }
+        if (confirmCloseTimeout) { clearTimeout(confirmCloseTimeout); confirmCloseTimeout = null; }
+        Object.assign(state, { selectedTicketId: null, showNewTicketModal: false, pendingAction: null, newComment: '', modalScrollPosition: 0 });
+        document.getElementById('confirm-modal-overlay')?.remove();
+        const mc = document.getElementById('modal-container');
+        if (mc) mc.innerHTML = '';
+        document.getElementById('app-container')?.classList.remove('blur-background');
+        document.body.classList.remove('modal-open');
+        fetchAllData();
+      }
+    };
+
+    function startApplication() {
+      renderHeaderAndToolbar();
+      fetchAllData();
+    }
+    
+    function updateScrollArrows() {
+        const container = document.getElementById('kanban-container');
+        const leftArrow = document.getElementById('scroll-left-btn');
+        const rightArrow = document.getElementById('scroll-right-btn');
+        if (!container || !leftArrow || !rightArrow) return;
+
+        const hasOverflow = container.scrollWidth > container.clientWidth + 2;
+        if (!hasOverflow) {
+            leftArrow.classList.remove('visible');
+            rightArrow.classList.remove('visible');
+            return;
+        }
+
+        const atStart = container.scrollLeft < 10;
+        const atEnd = container.scrollLeft + container.clientWidth >= container.scrollWidth - 10;
+        
+        leftArrow.classList.toggle('visible', !atStart);
+        rightArrow.classList.toggle('visible', !atEnd);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { 
+        lucide.createIcons(); 
+        startApplication(); 
+        
+        const kanbanContainer = document.getElementById('kanban-container');
+        const stickyHeaderContainer = document.getElementById('sticky-header-clone-container');
+        if (kanbanContainer && stickyHeaderContainer) {
+            kanbanContainer.addEventListener('scroll', () => {
+                stickyHeaderContainer.scrollLeft = kanbanContainer.scrollLeft;
+                updateScrollArrows();
             });
         }
-
-        function addTask(){
-            const text = taskInput.value.trim();
-            if(!text) return;
-
-            tasks.push({
-                id: Date.now(),
-                text,
-                completed:false
-            });
-
-            taskInput.value = '';
-            renderTasks();
-        }
-
-        function toggleTask(id){
-            tasks = tasks.map(t =>
-                t.id === id ? {...t, completed: !t.completed} : t
-            );
-            renderTasks();
-        }
-
-        function deleteTask(id){
-            tasks = tasks.filter(t => t.id !== id);
-            renderTasks();
-        }
-
-        addBtn.addEventListener('click', addTask);
-        taskInput.addEventListener('keydown', e => {
-            if(e.key === 'Enter') addTask();
+        
+        new ResizeObserver(updateScrollArrows).observe(kanbanContainer);
+        document.getElementById('scroll-left-btn').addEventListener('click', () => {
+            kanbanContainer.scrollBy({ left: -272, behavior: 'smooth' }); // 256px width + 16px gap
+        });
+        document.getElementById('scroll-right-btn').addEventListener('click', () => {
+            kanbanContainer.scrollBy({ left: 272, behavior: 'smooth' });
         });
 
-        renderTasks();
-    </script>
-</body>
-</html>
+        document.body.addEventListener('click', (e) => { const target = e.target.closest('[data-action],#confirm-action-btn,#cancel-action-btn,.ticket-card,.new-ticket-btn-trigger,.close-modal-btn,#add-comment-btn,.kanban-column-header'); if (!target) return; const actions = { '.new-ticket-btn-trigger': () => { state.showNewTicketModal = true; renderModals(); }, '#add-comment-btn': handleAddComment, '.ticket-card': () => { state.selectedTicketId = target.dataset.ticketId; renderModals(); }, '.close-modal-btn': handleCloseModals, '[data-action]': () => requestAction(target.dataset.status, target.dataset.ticketId), '#confirm-action-btn': confirmPendingAction, '#cancel-action-btn': () => { state.pendingAction = null; renderConfirmationModal(); }, '.kanban-column-header': () => { if(window.innerWidth<768){const wrapper=target.closest('.kanban-column-wrapper');const status=wrapper.dataset.status;const isOpen=wrapper.classList.toggle('is-open');if(isOpen){state.openAccordions.push(status);}else{state.openAccordions=state.openAccordions.filter(s=>s!==status);}} } }; for(const selector in actions) { if (target.matches(selector)) { e.preventDefault(); actions[selector](); break; } } }); 
+        document.body.addEventListener('submit', (e) => { if (e.target.id === 'new-ticket-form') { e.preventDefault(); handleCreateTicket(e); } }); 
+        document.body.addEventListener('input', (e) => { const targetId = e.target.id; if (targetId === 'new-comment-textarea') { state.newComment = e.target.value; document.getElementById('add-comment-btn').disabled = !state.newComment.trim(); } else if (targetId === 'search-input') { state.searchTerm = e.target.value; renderKanbanView(); } }); 
+        document.body.addEventListener('change', (e) => { if (e.target.id === 'filter-status-select') { state.filterStatus = e.target.value; if (window.innerWidth < 768) { state.openAccordions = state.filterStatus === 'todos' ? [] : [state.filterStatus]; } renderKanbanView(); } }); 
+                const backToTopBtn = document.getElementById('back-to-top-btn'); window.addEventListener('scroll', () => { backToTopBtn.classList.toggle('show', window.scrollY > 300); }); backToTopBtn.addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); }); 
+            });
+          </script>
+          <script src="tour.js"></script>
+        </body>
+        </html>
